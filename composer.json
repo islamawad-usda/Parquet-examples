@@ -1,0 +1,5 @@
+{
+    "require": {
+        "flow-php/parquet": "~0.43.0"
+    }
+}
