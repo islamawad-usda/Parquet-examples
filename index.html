@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GeoParquet Test</title>
+</head>
+<body>
+  <h1>North Carolina GeoParquet Test</h1>
+  <p id="status">Loading data...</p>
+  <pre id="results"></pre>
+
+  <script type="module">
+    const status = document.getElementById("status");
+    const results = document.getElementById("results");
+
+    try {
+      const { parquetReadObjects } = await import(
+        "https://esm.sh/hyparquet@1.30.0"
+      );
+      const { compressors } = await import(
+        "https://esm.sh/hyparquet-compressors@1.1.1"
+      );
+
+      const response = await fetch("./NC_counties_temperatures.geoparquet");
+
+      if (!response.ok) {
+        throw new Error("Could not load GeoParquet file.");
+      }
+
+      const rows = await parquetReadObjects({
+        file: await response.arrayBuffer(),
+        columns: ["county_fips", "date", "temperature_f", "geometry"],
+        compressors,
+      });
+
+      status.textContent = `Loaded ${rows.length} records.`;
+
+      results.textContent = rows.slice(0, 5).map((row) =>
+        `County: ${row.county_fips} | Date: ${row.date} | Temperature: ${row.temperature_f}°F | Geometry: ${row.geometry?.type}`
+      ).join("\n");
+
+    } catch (error) {
+      status.textContent = "Error loading data.";
+      results.textContent = error.message;
+      console.error(error);
+    }
+  </script>
+</body>
+</html>
