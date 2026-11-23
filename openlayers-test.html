@@ -15,6 +15,7 @@
   <h1>OpenLayers Test</h1>
   <p id="status">Checking OpenLayers...</p>
   <div id="map"></div>
+  <p id="data-status">Loading GeoParquet data...</p>
 
   <script src="https://cdn.jsdelivr.net/npm/ol@10.11.0/dist/ol.js"></script>
   <script>
@@ -37,6 +38,47 @@
       });
     } else {
       status.textContent = "OpenLayers could not be loaded.";
+    }
+  </script>
+
+  <script type="module">
+    const dataStatus = document.getElementById("data-status");
+
+    try {
+      const { parquetReadObjects } = await import(
+        "https://esm.sh/hyparquet@1.30.0"
+      );
+      const { compressors } = await import(
+        "https://esm.sh/hyparquet-compressors@1.1.1"
+      );
+
+      const response = await fetch("./NC_counties_temperatures.geoparquet");
+
+      if (!response.ok) {
+        throw new Error("Could not load GeoParquet file.");
+      }
+
+      const rows = await parquetReadObjects({
+        file: await response.arrayBuffer(),
+        columns: ["county_fips", "date", "temperature_f", "geometry"],
+        compressors,
+      });
+
+      if (!rows.length) {
+        throw new Error("No records found.");
+      }
+
+      const firstDate = String(rows[0].date);
+      const countyRows = rows.filter((row) =>
+        String(row.date) === firstDate && row.geometry
+      );
+
+      dataStatus.textContent =
+        `Loaded ${rows.length} records. ${countyRows.length} county records for ${firstDate}.`;
+
+    } catch (error) {
+      dataStatus.textContent = error.message;
+      console.error(error);
     }
   </script>
 </body>
