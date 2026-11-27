@@ -73,20 +73,31 @@
         throw new Error("No records found.");
       }
 
-      const firstDate = String(rows[0].date);
-      const countyRows = rows.filter((row) =>
-        String(row.date) === firstDate && row.geometry
+      const countyCodes = [...new Set(
+        rows.map((row) => String(row.county_fips))
+      )].sort();
+
+      const boundaryResponse = await fetch(
+        "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"
       );
+
+      if (!boundaryResponse.ok) {
+        throw new Error("Could not load county boundaries.");
+      }
+
+      const boundaryData = await boundaryResponse.json();
+
+      const countyFeatures = boundaryData.features.filter((feature) =>
+        countyCodes.includes(String(feature.id))
+      );
+
+      if (!countyFeatures.length) {
+        throw new Error("No matching county boundaries found.");
+      }
 
       const geojson = {
         type: "FeatureCollection",
-        features: countyRows.map((row) => ({
-          type: "Feature",
-          geometry: row.geometry,
-          properties: {
-            county_fips: row.county_fips,
-          },
-        })),
+        features: countyFeatures,
       };
 
       const vectorSource = new ol.source.Vector({
@@ -104,10 +115,6 @@
         padding: [20, 20, 20, 20],
         maxZoom: 8,
       });
-
-      const countyCodes = [...new Set(
-        rows.map((row) => String(row.county_fips))
-      )].sort();
 
       countyCodes.forEach((code) => {
         const option = document.createElement("option");
@@ -133,7 +140,7 @@
       showRecords();
 
       dataStatus.textContent =
-        `Loaded ${rows.length} records. Showing ${countyRows.length} county shapes for ${firstDate}.`;
+        `Loaded ${rows.length} records. Showing ${countyFeatures.length} county boundaries.`;
 
     } catch (error) {
       dataStatus.textContent = error.message;
